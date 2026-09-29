@@ -1,0 +1,163 @@
+{
+  "info": {
+    "_postman_id": "joke-api-demo",
+    "name": "Joke API - REST Testing",
+    "description": "Postman collection for JokeAPI query parameter tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get 1 Safe Joke",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://v2.jokeapi.dev/joke/Any?amount=1&safe-mode",
+          "protocol": "https",
+          "host": [
+            "v2",
+            "jokeapi",
+            "dev"
+          ],
+          "path": [
+            "joke",
+            "Any"
+          ],
+          "query": [
+            {
+              "key": "amount",
+              "value": "1"
+            },
+            {
+              "key": "safe-mode",
+              "value": "",
+              "description": "Enable safe jokes"
+            }
+          ]
+        },
+        "description": "Iegūst vienu nejauši izvēlētu šutku"
+      },
+      "response": []
+    },
+    {
+      "name": "Get 5 Safe Jokes",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://v2.jokeapi.dev/joke/Any?amount=5&safe-mode",
+          "protocol": "https",
+          "host": [
+            "v2",
+            "jokeapi",
+            "dev"
+          ],
+          "path": [
+            "joke",
+            "Any"
+          ],
+          "query": [
+            {
+              "key": "amount",
+              "value": "5"
+            },
+            {
+              "key": "safe-mode",
+              "value": "",
+              "description": "Enable safe jokes"
+            }
+          ]
+        },
+        "description": "Iegūst 5 nejaušas šutkas"
+      },
+      "response": []
+    },
+    {
+      "name": "Get 10 Safe Jokes",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://v2.jokeapi.dev/joke/Any?amount=10&safe-mode",
+          "protocol": "https",
+          "host": [
+            "v2",
+            "jokeapi",
+            "dev"
+          ],
+          "path": [
+            "joke",
+            "Any"
+          ],
+          "query": [
+            {
+              "key": "amount",
+              "value": "10"
+            },
+            {
+              "key": "safe-mode",
+              "value": "",
+              "description": "Enable safe jokes"
+            }
+          ]
+        },
+        "description": "Iegūst 10 nejaušas šutkas"
+      },
+      "response": []
+    },
+    {
+      "name": "Get 3 Safe Jokes",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://v2.jokeapi.dev/joke/Any?amount=3&safe-mode",
+          "protocol": "https",
+          "host": [
+            "v2",
+            "jokeapi",
+            "dev"
+          ],
+          "path": [
+            "joke",
+            "Any"
+          ],
+          "query": [
+            {
+              "key": "amount",
+              "value": "3"
+            },
+            {
+              "key": "safe-mode",
+              "value": "",
+              "description": "Enable safe jokes"
+            }
+          ]
+        },
+        "description": "Iegūst vienu nejaušu šutku ar count parametru"
+      },
+      "response": []
+    },
+    {
+      "name": "Laravel: List Posts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://127.0.0.1:8000/api/posts",
+          "protocol": "http",
+          "host": [
+            "127.0.0.1"
+          ],
+          "port": "8000",
+          "path": [
+            "api",
+            "posts"
+          ]
+        },
+        "description": "Iegūst 20 nejaušas šutkas"
+      },
+      "response": []
+    }
+  ]
+}

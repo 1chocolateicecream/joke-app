@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Joke App - AJAX API Demo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Joke App</h1>
+        <p class="subtitle">Jokes and posts, loaded from REST APIs without reloading the page</p>
+
+        <section class="api-section" aria-labelledby="jokesHeading">
+            <h2 id="jokesHeading">Random jokes</h2>
+            <p class="section-description">Get safe jokes from the free JokeAPI service.</p>
+            <div class="controls">
+                <label for="jokeCount">Number of jokes</label>
+                <input id="jokeCount" type="number" min="1" max="10" value="5">
+                <button id="loadJokesBtn" class="btn btn-primary">Get jokes</button>
+            </div>
+            <div id="jokesLoading" class="loading" role="status" aria-live="polite" style="display: none;">
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Loading jokes...</span>
+            </div>
+            <div id="jokesContainer" class="jokes-container">
+                <p class="placeholder">Choose a number and get some jokes.</p>
+            </div>
+        </section>
+
+        <section class="api-section" aria-labelledby="postsHeading">
+            <h2 id="postsHeading">Laravel posts</h2>
+            <p class="section-description">The second API is the local Laravel backend.</p>
+
+            <div class="controls">
+                <button id="loadPostsBtn" class="btn btn-primary">Load with Fetch</button>
+                <button id="loadPostsXhrBtn" class="btn btn-primary">Load with XMLHttpRequest</button>
+            </div>
+
+            <div id="loading" class="loading" role="status" aria-live="polite" style="display: none;">
+                <span class="spinner" aria-hidden="true"></span>
+                <span>Loading posts...</span>
+            </div>
+
+            <div id="postsContainer" class="jokes-container">
+                <p class="placeholder">Posts load automatically when the page opens.</p>
+            </div>
+
+            <div class="api-info">
+                <h3>Laravel API methods and endpoint:</h3>
+            <ul>
+                <li><code>GET /api/posts</code> - List posts</li>
+                <li><code>fetch()</code> with async/await</li>
+                <li><code>XMLHttpRequest</code></li>
+            </ul>
+            </div>
+        </section>
+
+        <div class="api-info">
+            <h3>Joke API endpoint:</h3>
+            <ul>
+                <li><code>GET https://v2.jokeapi.dev/joke/Any?amount=N&amp;safe-mode</code></li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
