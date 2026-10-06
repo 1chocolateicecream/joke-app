@@ -38,6 +38,7 @@ Accept: application/json
 ```json
 {
   "name": "Postman User",
+  "username": "postman_bird",
   "email": "postman@example.com",
   "password": "password123",
   "password_confirmation": "password123"

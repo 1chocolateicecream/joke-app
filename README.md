@@ -1,4 +1,4 @@
-# Joke App: AJAX and REST APIs
+# ВКустах: AJAX and REST APIs
 
 Vanilla JavaScript projekts, kas ielādē nejaušas šutkas no Official Joke API un Laravel posts no lokāla backend, neielādējot lapu no jauna.
 
