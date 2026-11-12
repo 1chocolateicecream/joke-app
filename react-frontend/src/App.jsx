@@ -4,6 +4,7 @@ import {
   deletePost,
   likePost,
   listPosts,
+  listNotifications,
   logout,
   repostPost,
   unlikePost,
@@ -15,6 +16,8 @@ import JokesPanel from './components/JokesPanel.jsx'
 import MusicPanel from './components/MusicPanel.jsx'
 import ProfilePanel from './components/ProfilePanel.jsx'
 import PostsPanel from './components/PostsPanel.jsx'
+import CommunityPanel from './components/CommunityPanel.jsx'
+import NotificationsPanel from './components/NotificationsPanel.jsx'
 import { useI18n } from './useI18n.js'
 
 function readSession() {
@@ -25,11 +28,21 @@ function readSession() {
   }
 }
 
-function loadPosts(setPosts, setLoading, setError, signal, token) {
+function readAccounts() {
+  try {
+    const accounts = JSON.parse(localStorage.getItem('joke-app-accounts') || '[]')
+    const active = readSession()
+    return active && !accounts.some((account) => Number(account.user.id) === Number(active.user.id))
+      ? [...accounts, active]
+      : accounts
+  } catch { return [] }
+}
+
+function loadPosts(setPosts, setLoading, setError, signal, token, scope) {
   setLoading(true)
   setError('')
 
-  return listPosts({ signal, token })
+  return listPosts({ signal, token, scope })
     .then(setPosts)
     .catch((error) => {
       if (error.name !== 'AbortError') setError(error.message)
@@ -47,13 +60,25 @@ function App() {
   const [postsLoading, setPostsLoading] = useState(true)
   const [postsError, setPostsError] = useState('')
   const [session, setSession] = useState(readSession)
+  const [accounts, setAccounts] = useState(readAccounts)
+  const [feedScope, setFeedScope] = useState('all')
+  const [unreadCount, setUnreadCount] = useState(0)
   const [profileUserId, setProfileUserId] = useState(() => readSession()?.user?.id ?? null)
   const sessionToken = session?.token
 
   useEffect(() => {
     const controller = new AbortController()
-    loadPosts(setPosts, setPostsLoading, setPostsError, controller.signal, sessionToken)
+    loadPosts(setPosts, setPostsLoading, setPostsError, controller.signal, sessionToken, feedScope)
     return () => controller.abort()
+  }, [sessionToken, feedScope])
+
+  useEffect(() => {
+    if (!sessionToken) return undefined
+    let active = true
+    const refresh = () => listNotifications(sessionToken).then((data) => { if (active) setUnreadCount(data.unread_count) }).catch(() => {})
+    refresh()
+    const timer = window.setInterval(refresh, 30000)
+    return () => { active = false; window.clearInterval(timer) }
   }, [sessionToken])
 
   function handleAuthenticated(authResponse) {
@@ -62,8 +87,22 @@ function App() {
       token: authResponse.token,
     }
     localStorage.setItem('joke-app-session', JSON.stringify(nextSession))
+    const nextAccounts = [...accounts.filter((account) => Number(account.user.id) !== Number(authResponse.user.id)), nextSession]
+    localStorage.setItem('joke-app-accounts', JSON.stringify(nextAccounts))
+    setAccounts(nextAccounts)
     setSession(nextSession)
+    setUnreadCount(0)
     setProfileUserId(authResponse.user.id)
+  }
+
+  function handleSwitchAccount(userId) {
+    const nextSession = accounts.find((account) => Number(account.user.id) === Number(userId))
+    if (!nextSession) return
+    localStorage.setItem('joke-app-session', JSON.stringify(nextSession))
+    setSession(nextSession)
+    setUnreadCount(0)
+    setProfileUserId(nextSession.user.id)
+    setActiveTab('posts')
   }
 
   function handleOpenProfile(userId) {
@@ -92,8 +131,22 @@ function App() {
       console.warn('Could not revoke the API token:', error)
     } finally {
       localStorage.removeItem('joke-app-session')
+      const remaining = accounts.filter((account) => Number(account.user.id) !== Number(session?.user?.id))
+      localStorage.setItem('joke-app-accounts', JSON.stringify(remaining))
+      setAccounts(remaining)
       setSession(null)
+      setUnreadCount(0)
+      setActiveTab('posts')
     }
+  }
+
+  function handleNotificationOpen(data) {
+    if (data.post_id) {
+      setFeedScope('all')
+      setActiveTab('posts')
+      window.setTimeout(() => document.getElementById(`post-${data.post_id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350)
+    } else if (data.actor?.id) handleOpenProfile(data.actor.id)
+    listNotifications(sessionToken).then((result) => setUnreadCount(result.unread_count)).catch(() => {})
   }
 
   async function handleSavePost(values, postId) {
@@ -118,9 +171,9 @@ function App() {
     setPosts((currentPosts) => currentPosts.filter((post) => post.id !== postId))
   }
 
-  async function handleReaction(postId, reaction) {
+  async function handleReaction(postId, reaction, knownPost = null) {
     if (!session?.token) throw new Error(t('posts.loginToReact'))
-    const post = posts.find((item) => item.id === postId)
+    const post = knownPost || posts.find((item) => item.id === postId)
     if (!post) return
 
     let result
@@ -171,8 +224,10 @@ function App() {
           </button>
           <AuthPanel
             session={session}
+            accounts={accounts}
             onAuthenticated={handleAuthenticated}
             onLogout={handleLogout}
+            onSwitchAccount={handleSwitchAccount}
           />
         </div>
       </header>
@@ -186,6 +241,12 @@ function App() {
           >
             <span className="side-nav-icon" aria-hidden="true">N</span>{t('nav.feed')}
           </button>
+          <button className={activeTab === 'community' ? 'side-nav-link active' : 'side-nav-link'} onClick={() => setActiveTab('community')} type="button">
+            <span className="side-nav-icon" aria-hidden="true">B</span>{t('nav.community')}
+          </button>
+          {session?.user && <button className={activeTab === 'notifications' ? 'side-nav-link active' : 'side-nav-link'} onClick={() => setActiveTab('notifications')} type="button">
+            <span className="side-nav-icon" aria-hidden="true">!</span>{t('nav.notifications')}{unreadCount > 0 && <span className="nav-count">{unreadCount}</span>}
+          </button>}
           <button
             className={activeTab === 'jokes' ? 'side-nav-link active' : 'side-nav-link'}
             onClick={() => setActiveTab('jokes')}
@@ -216,19 +277,27 @@ function App() {
               posts={visiblePosts}
               searchQuery={searchQuery}
               currentUser={session?.user}
+              token={sessionToken}
+              feedScope={feedScope}
+              onDiscoverBirds={() => setActiveTab('community')}
+              onFeedScopeChange={setFeedScope}
               loading={postsLoading}
               error={postsError}
-              onRefresh={() => loadPosts(setPosts, setPostsLoading, setPostsError, undefined, sessionToken)}
+              onRefresh={() => loadPosts(setPosts, setPostsLoading, setPostsError, undefined, sessionToken, feedScope)}
               onSave={handleSavePost}
               onDelete={handleDeletePost}
-              onToggleLike={(postId) => handleReaction(postId, 'like')}
-              onToggleRepost={(postId) => handleReaction(postId, 'repost')}
+              onToggleLike={(postId, post) => handleReaction(postId, 'like', post)}
+              onToggleRepost={(postId, post) => handleReaction(postId, 'repost', post)}
               onAuthorClick={handleOpenProfile}
             />
+          ) : activeTab === 'community' ? (
+            <CommunityPanel currentUser={session?.user} token={sessionToken} onAuthorClick={handleOpenProfile} />
+          ) : activeTab === 'notifications' && session?.user ? (
+            <NotificationsPanel token={sessionToken} onNotificationOpen={handleNotificationOpen} onUnreadChange={setUnreadCount} />
           ) : activeTab === 'jokes' ? (
             <JokesPanel />
           ) : activeTab === 'music' ? (
-            <MusicPanel />
+            <MusicPanel currentUser={session?.user} onShare={handleSavePost} />
           ) : (
             <ProfilePanel
               userId={profileUserId}
@@ -237,8 +306,8 @@ function App() {
               onProfileUpdated={handleProfileUpdated}
               onSavePost={handleSavePost}
               onDeletePost={handleDeletePost}
-              onToggleLike={(postId) => handleReaction(postId, 'like')}
-              onToggleRepost={(postId) => handleReaction(postId, 'repost')}
+              onToggleLike={(postId, post) => handleReaction(postId, 'like', post)}
+              onToggleRepost={(postId, post) => handleReaction(postId, 'repost', post)}
               onAuthorClick={handleOpenProfile}
             />
           )}
@@ -246,29 +315,15 @@ function App() {
 
         <aside className="sidebar">
           <section className="side-box">
-            <h2>{t('sidebar.apiStatus')}</h2>
-            <dl className="status-list">
-              <div>
-                <dt>{t('sidebar.laravel')}</dt>
-                <dd className={postsError ? 'status status-error' : 'status'}>
-                  <span className="status-dot" />{postsLoading ? t('sidebar.checking') : postsError ? t('sidebar.unavailable') : t('sidebar.connected')}
-                </dd>
-              </div>
-              <div>
-                <dt>{t('sidebar.postsInFeed')}</dt>
-                <dd>{posts.length}</dd>
-              </div>
-            </dl>
+            <h2>{t('sidebar.exploreTitle')}</h2>
+            <p>{t('sidebar.exploreBody')}</p>
+            <button className="secondary-button sidebar-action" type="button" onClick={() => setActiveTab('community')}>{t('sidebar.exploreAction')}</button>
           </section>
-          <section className="side-box endpoint-box">
-            <h2>{t('sidebar.endpoints')}</h2>
-            <p><code>GET /api/posts</code></p>
-            <p><code>POST /api/login</code></p>
-            <p><code>POST /api/register</code></p>
-            <p><code>PUT /api/posts/{'{post}'}/like</code></p>
-            <p><code>JokeAPI ?amount=N</code></p>
+          <section className="side-box">
+            <h2>{t('sidebar.followingTitle')}</h2>
+            <p>{t('sidebar.followingBody')}</p>
+            <button className="secondary-button sidebar-action" type="button" onClick={() => { setActiveTab('posts'); setFeedScope('following') }}>{t('sidebar.followingAction')}</button>
           </section>
-          <p className="sidebar-note">{t('sidebar.note')}</p>
         </aside>
       </main>
 

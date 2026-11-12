@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useI18n } from '../useI18n.js'
 
-function MusicPanel() {
+function MusicPanel({ currentUser, onShare }) {
     const { t } = useI18n()
     const [tracks, setTracks] = useState([])
     const [currentTrackId, setCurrentTrackId] = useState(null)
     const [error, setError] = useState('')
+    const [shareMessage, setShareMessage] = useState('')
+    const [sharingId, setSharingId] = useState(null)
     const objectUrls = useRef(new Set())
     const currentTrack = tracks.find((track) => track.id === currentTrackId)
 
@@ -52,6 +54,25 @@ function MusicPanel() {
         setCurrentTrackId(tracks[currentIndex + 1]?.id || null)
     }
 
+    async function shareTrack(track) {
+        if (!currentUser || !onShare || sharingId) return
+        setSharingId(track.id)
+        setError('')
+        setShareMessage('')
+        const values = new FormData()
+        values.set('title', `🎵 ${track.name}`)
+        values.set('body', t('music.shareBody', { name: track.name }))
+        values.set('visibility', 'followers')
+        try {
+            await onShare(values)
+            setShareMessage(t('music.shared'))
+        } catch (shareError) {
+            setError(shareError.message)
+        } finally {
+            setSharingId(null)
+        }
+    }
+
     return (
         <>
             <div className="section-heading">
@@ -67,6 +88,8 @@ function MusicPanel() {
 
             <p className="music-note panel">{t('music.note')}</p>
             {error && <p className="notice error-notice" role="alert">{error}</p>}
+            {shareMessage && <p className="form-success" role="status">{shareMessage}</p>}
+            {!currentUser && tracks.length > 0 && <p className="music-note">{t('music.shareLogin')}</p>}
 
             {currentTrack ? (
                 <section className="music-player panel">
@@ -94,6 +117,9 @@ function MusicPanel() {
                                 <span>{track.name}</span>
                             </button>
                             <span className="track-size">{(track.size / 1024 / 1024).toFixed(1)} MB</span>
+                            {currentUser && <button className="secondary-button" type="button" disabled={sharingId !== null} onClick={() => shareTrack(track)}>
+                                {sharingId === track.id ? t('music.sharing') : t('music.share')}
+                            </button>}
                             <button className="text-button danger-button" type="button" onClick={() => removeTrack(track.id)}>
                                 {t('music.remove')}
                             </button>

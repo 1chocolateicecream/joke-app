@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { login, register } from '../api.js'
 import { useI18n } from '../useI18n.js'
 
-function AuthPanel({ session, onAuthenticated, onLogout }) {
+function AuthPanel({ session, accounts = [], onAuthenticated, onLogout, onSwitchAccount }) {
     const { t } = useI18n()
     const [isOpen, setIsOpen] = useState(false)
     const [mode, setMode] = useState('login')
@@ -26,20 +26,15 @@ function AuthPanel({ session, onAuthenticated, onLogout }) {
         }
     }
 
-    if (session) {
-        return (
-            <div className="account-bar">
-                <span className="account-name">
-                    {session.user.name}{session.user.username && <small>@{session.user.username}</small>}
-                </span>
-                <button className="text-button" type="button" onClick={onLogout}>{t('auth.logout')}</button>
-            </div>
-        )
-    }
-
     return (
         <div className="auth-wrap">
-            <button
+            {session ? <div className="account-bar">
+                <span className="account-name">{session.user.name}{session.user.username && <small>@{session.user.username}</small>}</span>
+                {session.user.roles?.some((role) => role.name === 'admin') && <span className="admin-badge">ADMIN</span>}
+                {accounts.length > 1 && <select aria-label={t('auth.switchAccount')} value={session.user.id} onChange={(event) => onSwitchAccount?.(event.target.value)}>{accounts.map((account) => <option key={account.user.id} value={account.user.id}>{account.user.name}</option>)}</select>}
+                <button className="text-button auth-add-account" type="button" onClick={() => { setIsOpen((open) => !open); setMode('login'); setError('') }}>{isOpen ? t('auth.close') : t('auth.addAccount')}</button>
+                <button className="text-button" type="button" onClick={onLogout}>{t('auth.logout')}</button>
+            </div> : <button
                 className="header-button"
                 type="button"
                 aria-expanded={isOpen}
@@ -49,7 +44,7 @@ function AuthPanel({ session, onAuthenticated, onLogout }) {
                 }}
             >
                 {isOpen ? t('auth.close') : t('auth.open')}
-            </button>
+            </button>}
             {isOpen && (
                 <form className="auth-popover" onSubmit={handleSubmit}>
                     <h2>{mode === 'login' ? t('auth.login') : t('auth.createAccount')}</h2>
@@ -67,8 +62,8 @@ function AuthPanel({ session, onAuthenticated, onLogout }) {
                         </label>
                     )}
                     <label>
-                        {t('auth.email')}
-                        <input name="email" type="email" autoComplete="email" required />
+                        {mode === 'login' ? t('auth.loginName') : t('auth.email')}
+                        <input name={mode === 'login' ? 'login' : 'email'} type={mode === 'login' ? 'text' : 'email'} autoCapitalize="none" autoComplete={mode === 'login' ? 'username' : 'email'} required />
                     </label>
                     <label>
                         {t('auth.password')}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getProfile, updateProfile } from '../api.js'
+import { followUser, getProfile, unfollowUser, updateProfile } from '../api.js'
 import Avatar from './Avatar.jsx'
 import LoadingState from './LoadingState.jsx'
 import PostsPanel from './PostsPanel.jsx'
@@ -26,6 +26,7 @@ function ProfilePanel({
     const [saveError, setSaveError] = useState('')
     const [success, setSuccess] = useState('')
     const [refreshKey, setRefreshKey] = useState(0)
+    const [followBusy, setFollowBusy] = useState(false)
     const isOwnProfile = currentUser && Number(currentUser.id) === Number(userId)
     const requestKey = `${userId}:${token || 'guest'}:${refreshKey}`
     const loading = loadedKey !== requestKey
@@ -106,7 +107,8 @@ function ProfilePanel({
     }
 
     async function handleWallReaction(postId, onReact, reactionType) {
-        const result = await onReact(postId)
+        const post = profile.posts.find((item) => item.id === postId) || profile.reposts.find((item) => item.id === postId)
+        const result = await onReact(postId, post)
         setProfileData((current) => ({
             ...current,
             posts: current.posts.map((post) => post.id === postId ? { ...post, ...result } : post),
@@ -127,6 +129,20 @@ function ProfilePanel({
                 : current.reposts.map((post) => post.id === postId ? { ...post, ...result } : post),
         }))
         return result
+    }
+
+    async function handleFollow() {
+        if (!token || followBusy) return
+        setFollowBusy(true)
+        try {
+            const result = profile.user.is_following
+                ? await unfollowUser(token, profile.user.id)
+                : await followUser(token, profile.user.id)
+            setProfileData((current) => ({ ...current, user: { ...current.user, is_following: result.following, followers_count: result.followers_count } }))
+        } catch (requestError) {
+            setProfileError(requestError.message)
+            setLoadedKey(requestKey)
+        } finally { setFollowBusy(false) }
     }
 
     if (loading) return <LoadingState label={t('profile.loading')} />
@@ -161,6 +177,7 @@ function ProfilePanel({
                     )}
                     <p className="profile-meta">
                         {t('profile.joined', { date: joinedDate })}
+                        {' · '}{t('community.followersCount', { count: profile.user.followers_count || 0 })}
                         {' · '}{t('profile.postCount', { count: profile.posts.length })}
                         {' · '}{t('profile.repostCount', { count: profile.reposts.length })}
                     </p>
@@ -176,6 +193,11 @@ function ProfilePanel({
                         }}
                     >
                         {editing ? t('profile.closeEditor') : t('profile.edit')}
+                    </button>
+                )}
+                {!isOwnProfile && currentUser && (
+                    <button className={profile.user.is_following ? 'secondary-button' : 'primary-button'} type="button" disabled={followBusy} onClick={handleFollow}>
+                        {followBusy ? t('community.pleaseWait') : profile.user.is_following ? t('community.following') : t('community.follow')}
                     </button>
                 )}
             </section>
@@ -267,6 +289,7 @@ function ProfilePanel({
                 <PostsPanel
                     posts={wallView === 'posts' ? profile.posts : profile.reposts}
                     currentUser={currentUser}
+                    token={token}
                     canCompose={Boolean(isOwnProfile) && wallView === 'posts'}
                     showRepostSource={wallView === 'reposts'}
                     loading={false}
